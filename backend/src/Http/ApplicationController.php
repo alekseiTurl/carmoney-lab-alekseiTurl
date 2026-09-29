@@ -47,6 +47,7 @@ final class ApplicationController
             'ltv' => $result['ltv'],
             'decision' => $result['decision'],
             'approved_limit' => $result['approved_limit'],
+            ...(array_key_exists('reason', $result) ? ['reason' => $result['reason']] : []),
         ], 201);
     }
 
@@ -66,6 +67,7 @@ final class ApplicationController
             'ltv' => $result['ltv'],
             'decision' => $result['decision'],
             'approved_limit' => $result['approved_limit'],
+            ...(array_key_exists('reason', $result) ? ['reason' => $result['reason']] : []),
         ]);
     }
 

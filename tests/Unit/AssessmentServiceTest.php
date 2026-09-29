@@ -26,6 +26,7 @@ final class AssessmentServiceTest extends TestCase
             new LtvCalculator(),
             new DecisionEngine($rules['ltv']),
             $age,
+            $rules['vehicle']['review_mileage_km'],
         );
     }
 

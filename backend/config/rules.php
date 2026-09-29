@@ -21,6 +21,9 @@ return [
         'min_year' => 1990,
         'max_age_years' => 20,
         'max_mileage_km' => 500000,
+        // Жёсткий верхний предел — max_mileage_km (выше — 422).
+        // Мягкий порог review: выше — approve понижается до review.
+        'review_mileage_km' => 400000,
     ],
 
     'amount' => [
