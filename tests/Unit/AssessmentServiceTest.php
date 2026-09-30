@@ -26,16 +26,17 @@ final class AssessmentServiceTest extends TestCase
             new LtvCalculator(),
             new DecisionEngine($rules['ltv']),
             $age,
+            $rules['vehicle']['review_mileage_km'],
         );
     }
 
     /** @return array<string,mixed> */
-    private function payload(int $amount, int $marketValue): array
+    private function payload(int $amount, int $marketValue, int|string $mileage = 96000): array
     {
         return [
             'vin' => 'XTA21099998765432',
             'year' => (int) date('Y') - 4,
-            'mileage' => 96000,
+            'mileage' => $mileage,
             'market_value' => $marketValue,
             'requested_amount' => $amount,
             'term_months' => 24,
@@ -68,5 +69,68 @@ final class AssessmentServiceTest extends TestCase
         self::assertSame(95.0, $result['ltv']);
         self::assertSame(DecisionEngine::REJECT, $result['decision']);
         self::assertSame(0, $result['approved_limit']);
+    }
+
+    public function testApprovesMileageBelowReviewThresholdWithoutReason(): void
+    {
+        $result = $this->service->assess($this->payload(450000, 900000, 399999));
+
+        self::assertSame(DecisionEngine::APPROVE, $result['decision']);
+        self::assertSame(450000, $result['approved_limit']);
+        self::assertArrayNotHasKey('reason', $result);
+    }
+
+    public function testApprovesMileageAtReviewThresholdWithoutReason(): void
+    {
+        $result = $this->service->assess($this->payload(450000, 900000, 400000));
+
+        self::assertSame(DecisionEngine::APPROVE, $result['decision']);
+        self::assertSame(450000, $result['approved_limit']);
+        self::assertArrayNotHasKey('reason', $result);
+    }
+
+    public function testDowngradesApproveToReviewAboveMileageThresholdWithReason(): void
+    {
+        $result = $this->service->assess($this->payload(450000, 900000, 400001));
+
+        self::assertSame(DecisionEngine::REVIEW, $result['decision']);
+        self::assertSame(0, $result['approved_limit']);
+        self::assertSame(AssessmentService::REASON_HIGH_MILEAGE, $result['reason']);
+    }
+
+    public function testDowngradesApproveAtHardMileageLimitWithReason(): void
+    {
+        $result = $this->service->assess($this->payload(450000, 900000, 500000));
+
+        self::assertSame(DecisionEngine::REVIEW, $result['decision']);
+        self::assertSame(0, $result['approved_limit']);
+        self::assertSame(AssessmentService::REASON_HIGH_MILEAGE, $result['reason']);
+    }
+
+    public function testKeepsRejectForHighMileageWithoutReason(): void
+    {
+        $result = $this->service->assess($this->payload(855000, 900000, 400001));
+
+        self::assertSame(DecisionEngine::REJECT, $result['decision']);
+        self::assertSame(0, $result['approved_limit']);
+        self::assertArrayNotHasKey('reason', $result);
+    }
+
+    public function testKeepsLtvReviewForHighMileageWithoutReason(): void
+    {
+        $result = $this->service->assess($this->payload(675000, 900000, 400001));
+
+        self::assertSame(DecisionEngine::REVIEW, $result['decision']);
+        self::assertSame(0, $result['approved_limit']);
+        self::assertArrayNotHasKey('reason', $result);
+    }
+
+    public function testTreatsEmptyMileageStringAsZeroAndApprovesWithoutReason(): void
+    {
+        $result = $this->service->assess($this->payload(450000, 900000, ''));
+
+        self::assertSame(DecisionEngine::APPROVE, $result['decision']);
+        self::assertSame(450000, $result['approved_limit']);
+        self::assertArrayNotHasKey('reason', $result);
     }
 }
